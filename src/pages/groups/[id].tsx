@@ -77,6 +77,8 @@ export default function GroupDetailsPage() {
   const [addingMemory, setAddingMemory] = useState(false);
   const [previewMemory, setPreviewMemory] = useState<Memory | null>(null);
   const [memoryFile, setMemoryFile] = useState<File | null>(null);
+  const [isMember, setIsMember] = useState(false);
+  const [joiningGroup, setJoiningGroup] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const memoryImagesRef = useRef<HTMLInputElement>(null);
 
@@ -93,6 +95,55 @@ export default function GroupDetailsPage() {
   });
 
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+
+  const checkMembership = async () => {
+    if (!user?.id || !id) return false;
+    
+    const { data: membership } = await supabase
+      .from("group_members")
+      .select("*")
+      .eq("group_id", id)
+      .eq("user_id", user.id)
+      .single();
+    
+    setIsMember(!!membership);
+    return !!membership;
+  };
+
+  const joinGroup = async () => {
+    if (!user?.id || !id || isMember || joiningGroup) return;
+
+    try {
+      setJoiningGroup(true);
+      const { error } = await supabase
+        .from("group_members")
+        .insert({
+          group_id: id,
+          user_id: user.id,
+          role: "member"
+        });
+
+      if (error) throw error;
+
+      setIsMember(true);
+      toast({
+        title: "Grupo acessado!",
+        description: "Você agora é membro deste grupo.",
+      });
+
+      // Reload memories after joining
+      loadMemories();
+    } catch (error) {
+      console.error("Error joining group:", error);
+      toast({
+        title: "Erro ao entrar no grupo",
+        description: "Não foi possível entrar no grupo.",
+        variant: "destructive",
+      });
+    } finally {
+      setJoiningGroup(false);
+    }
+  };
 
   const checkAndCreateMembership = async (groupId: string) => {
     try {
@@ -124,7 +175,15 @@ export default function GroupDetailsPage() {
   };
 
   useEffect(() => {
-    async function loadGroup() {
+    async function init() {
+      await loadGroup();
+      // Load memories regardless of membership for public groups
+      loadMemories();
+    }
+    init();
+  }, [id, supabase]);
+
+  async function loadGroup() {
       try {
         const { data, error } = await supabase
           .from("groups")
@@ -153,33 +212,33 @@ export default function GroupDetailsPage() {
       }
     }
 
-    async function loadMemories() {
-      try {
-        setLoadingMemories(true);
-        const { data, error } = await supabase
-          .from("memories")
-          .select("*")
-          .eq("group_id", id)
-          .order("created_at", { ascending: false });
+  async function loadMemories() {
+    if (!id) return;
 
-        if (error) throw error;
+    try {
+      setLoadingMemories(true);
+      const { data, error } = await supabase
+        .from("memories")
+        .select("*")
+        .eq("group_id", id)
+        .order("created_at", { ascending: false });
 
-        setMemories(data || []);
-      } catch (error) {
-        console.error("Error loading memories:", error);
-        toast({
-          title: "Erro ao carregar memórias",
-          description: "Não foi possível carregar as memórias deste grupo.",
-          variant: "destructive",
-        });
-      } finally {
-        setLoadingMemories(false);
-      }
+      if (error) throw error;
+
+      setMemories(data || []);
+    } catch (error) {
+      console.error("Error loading memories:", error);
+      toast({
+        title: "Erro ao carregar memórias",
+        description: "Não foi possível carregar as memórias deste grupo.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingMemories(false);
     }
+  }
 
-    loadGroup();
-    loadMemories();
-  }, [id, supabase, toast]);
+
 
   const handleImageUpload = async (file: File) => {
     try {
@@ -572,27 +631,46 @@ export default function GroupDetailsPage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-4 text-sm text-indigo-600 bg-indigo-50 p-3 rounded-lg">
-            <div className="flex items-center">
-              {group.is_private ? (
-                <Lock className="h-4 w-4 mr-1 text-indigo-500" />
-              ) : (
-                <Globe className="h-4 w-4 mr-1 text-indigo-500" />
+          <div className="flex items-center justify-between gap-4 text-sm text-indigo-600 bg-indigo-50 p-3 rounded-lg">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center">
+                {group.is_private ? (
+                  <Lock className="h-4 w-4 mr-1 text-indigo-500" />
+                ) : (
+                  <Globe className="h-4 w-4 mr-1 text-indigo-500" />
+                )}
+                <span>{group.is_private ? "Grupo Privado" : "Grupo Público"}</span>
+              </div>
+              <span className="text-indigo-300">•</span>
+              <div className="flex items-center">
+                <Calendar className="h-4 w-4 mr-1 text-indigo-500" />
+                <span>
+                  Criado em {new Date(group.created_at).toLocaleDateString()}
+                </span>
+              </div>
+              {!isMember && (
+                <Button
+                  onClick={joinGroup}
+                  disabled={joiningGroup}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                >
+                  {joiningGroup ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Entrando...
+                    </>
+                  ) : (
+                    "Entrar"
+                  )}
+                </Button>
               )}
-              <span>{group.is_private ? "Grupo Privado" : "Grupo Público"}</span>
-            </div>
-            <span className="text-indigo-300">•</span>
-            <div className="flex items-center">
-              <Calendar className="h-4 w-4 mr-1 text-indigo-500" />
-              <span>
-                Criado em {new Date(group.created_at).toLocaleDateString()}
-              </span>
-            </div>
           </div>
         </div>
       </div>
-      
-      <div className="flex justify-between items-center mb-6">
+
+      {isMember ? (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold text-indigo-800 flex items-center">
           <Camera className="h-5 w-5 mr-2 text-indigo-600" />
           Memórias
@@ -683,7 +761,13 @@ export default function GroupDetailsPage() {
           </Dialog>
         </div>
       </div>
-
+   
+    </div>
+    ): (
+      null
+    )}
+    
+    
       {loadingMemories ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
@@ -733,10 +817,9 @@ export default function GroupDetailsPage() {
               </div>
             </div>
           ))}
-        </div>
-      )}
-
-      {/* Modal com visualização expandida da memória */}
+      </div>
+    )}
+    {isMember && (
       <Dialog open={!!previewMemory} onOpenChange={() => setPreviewMemory(null)}>
         <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-xl bg-white">
           <div className="grid grid-cols-1 md:grid-cols-2">
@@ -766,6 +849,8 @@ export default function GroupDetailsPage() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
+    )}
+
+</div>
+</div>
+  )}

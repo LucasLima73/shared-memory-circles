@@ -16,7 +16,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ className }: SidebarProps) {
-  const { supabase } = useAuth();
+  const { supabase, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [userGroups, setUserGroups] = useState<Group[]>([]);
@@ -25,15 +25,36 @@ export default function Sidebar({ className }: SidebarProps) {
   useEffect(() => {
     async function loadUserGroups() {
       try {
-        const { data, error } = await supabase
-          .from('groups')
-          .select('id, name')
-          .order('name');
+        if (!user?.id) return;
 
-        if (error) throw error;
+        // Buscar grupos onde o usuário é membro
+        const { data: memberships, error: membershipError } = await supabase
+          .from('group_members')
+          .select('group_id')
+          .eq('user_id', user.id);
 
-        setUserGroups(data || []);
+        if (membershipError) throw membershipError;
+
+        // Se o usuário participa de algum grupo
+        if (memberships && memberships.length > 0) {
+          const groupIds = memberships.map(m => m.group_id);
+          
+          // Buscar detalhes dos grupos
+          const { data: groups, error: groupsError } = await supabase
+            .from('groups')
+            .select('id, name')
+            .in('id', groupIds)
+            .order('name');
+
+          if (groupsError) throw groupsError;
+          
+          setUserGroups(groups || []);
+        } else {
+          // Se não participa de nenhum grupo
+          setUserGroups([]);
+        }
       } catch (error) {
+        console.error('Erro ao carregar grupos:', error);
         toast({
           title: "Erro ao carregar grupos",
           description: "Não foi possível carregar seus grupos.",
@@ -45,7 +66,7 @@ export default function Sidebar({ className }: SidebarProps) {
     }
 
     loadUserGroups();
-  }, [supabase, toast]);
+  }, [supabase, toast, user]);
 
   return (
     <aside

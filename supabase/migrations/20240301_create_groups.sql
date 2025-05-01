@@ -57,3 +57,29 @@ create policy "Users can delete their own groups"
         and role = 'owner'
     )
   );
+-- Allow public group members to insert into group_members
+CREATE POLICY "Public group members can join groups"
+ON group_members
+FOR INSERT
+TO authenticated
+WITH CHECK (
+  auth.uid() = user_id
+  AND (
+    SELECT is_private
+    FROM groups
+    WHERE id = group_id
+  ) = false
+);
+
+-- Allow public group members to view memories
+CREATE POLICY "Public group members can view memories"
+ON memories
+FOR SELECT
+TO authenticated
+USING (
+  (
+    SELECT is_private
+    FROM groups
+    WHERE id = group_id
+  ) = false
+);

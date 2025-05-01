@@ -8,6 +8,7 @@ interface AuthContextType {
   supabase: typeof supabase;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -16,6 +17,7 @@ const AuthContext = createContext<AuthContextType>({
   supabase,
   signIn: async () => {},
   signUp: async () => {},
+  signOut: async () => {},
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -29,6 +31,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const signUp = async (email: string, password: string) => {
     const { error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+  };
+
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
     if (error) throw error;
   };
 
@@ -49,7 +56,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, supabase, signIn, signUp }}>
+    <AuthContext.Provider value={{ user, loading, supabase, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );
