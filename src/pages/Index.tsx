@@ -97,59 +97,72 @@ const Index = () => {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
-      <div className="flex flex-1">
-        <Sidebar />
-        <main className="flex-1 bg-muted/30">
-          <HeroSection />
+      <main className="flex-1 bg-muted/30">
+        <HeroSection />
 
-          <FeaturedSection
-            title="Memórias em Destaque"
-            description="Momentos especiais compartilhados recentemente"
-            actionLabel="Ver todas"
-            actionHref="#"
-          >
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {featuredMemories.map((memory) => (
-                <MemoryCard key={memory.id} memory={memory} />
-              ))}
-            </div>
-          </FeaturedSection>
+        <div className="flex justify-center gap-4 py-6">
+          <a href="/auth">
+            <button className="rounded-full bg-transparent border border-memories-purple px-6 py-2 text-memories-purple hover:bg-memories-purple hover:text-white">
+              Entrar
+            </button>
+          </a>
+          <a href="/auth?signup=true">
+            <button className="rounded-full bg-memories-purple px-6 py-2 text-white hover:bg-memories-dark-purple">
+              Criar Conta
+            </button>
+          </a>
+        </div>
 
-          <FeaturedSection
-            title="Grupos Populares"
-            description="Encontre comunidades para compartilhar suas memórias"
-            actionLabel="Explorar grupos"
-            actionHref="#"
-          >
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {featuredGroups.map((group) => (
-                <GroupCard key={group.id} group={group} />
-              ))}
-            </div>
-          </FeaturedSection>
+        <FeaturedSection
+          title="Memórias em Destaque"
+          description="Momentos especiais compartilhados recentemente"
+          actionLabel="Ver todas"
+          actionHref="#"
+        >
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {featuredMemories.map((memory) => (
+              <MemoryCard key={memory.id} memory={memory} />
+            ))}
+          </div>
+        </FeaturedSection>
 
-          <div className="bg-memories-light-purple py-16">
-            <div className="container px-4 text-center md:px-6">
-              <h2 className="font-display text-2xl font-bold md:text-3xl">
-                Crie seu próprio espaço de memórias
-              </h2>
-              <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-                Perfeito para escolas, empresas, eventos ou qualquer grupo que
-                queira preservar momentos juntos. Personalize sua experiência
-                com recursos exclusivos.
-              </p>
-              <div className="mt-8 flex justify-center">
+        <FeaturedSection
+          title="Grupos Populares"
+          description="Encontre comunidades para compartilhar suas memórias"
+          actionLabel="Explorar grupos"
+          actionHref="#"
+        >
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {featuredGroups.map((group) => (
+              <GroupCard key={group.id} group={group} />
+            ))}
+          </div>
+        </FeaturedSection>
+
+        <div className="bg-memories-light-purple py-16">
+          <div className="container px-4 text-center md:px-6">
+            <h2 className="font-display text-2xl font-bold md:text-3xl">
+              Crie seu próprio espaço de memórias
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
+              Perfeito para escolas, empresas, eventos ou qualquer grupo que
+              queira preservar momentos juntos. Personalize sua experiência
+              com recursos exclusivos.
+            </p>
+            <div className="mt-8 flex justify-center">
+              <a href="/auth?signup=true">
                 <button className="rounded-full bg-memories-purple px-6 py-3 text-white hover:bg-memories-dark-purple">
                   Criar um grupo
                 </button>
-              </div>
+              </a>
             </div>
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
       <Footer />
     </div>
   );
 };
+
 
 export default Index;
