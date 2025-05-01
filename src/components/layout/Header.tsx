@@ -1,10 +1,17 @@
-
 import { useState } from "react";
 import { Bell, Menu, MessageSquare, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { CreateGroupForm } from "@/components/groups/CreateGroupForm";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Header() {
@@ -51,16 +58,14 @@ export default function Header() {
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Criar novo grupo</DialogTitle>
+                <DialogDescription>
+                  Crie um novo grupo para compartilhar memórias com amigos e familiares.
+                </DialogDescription>
+              </DialogHeader>
               <div className="p-4">
-                <h2 className="mb-4 text-xl font-bold">Criar nova memória</h2>
-                <p className="text-muted-foreground">
-                  Adicione fotos, vídeos e texto para compartilhar um momento especial.
-                </p>
-                <div className="mt-6 flex justify-end">
-                  <Button className="bg-memories-purple hover:bg-memories-dark-purple">
-                    Criar
-                  </Button>
-                </div>
+                <CreateGroupForm />
               </div>
             </DialogContent>
           </Dialog>

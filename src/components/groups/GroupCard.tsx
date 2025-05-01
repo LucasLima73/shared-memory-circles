@@ -1,6 +1,6 @@
-
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 interface GroupCardProps {
@@ -15,7 +15,8 @@ interface GroupCardProps {
   className?: string;
 }
 
-export default function GroupCard({ group, className }: GroupCardProps) {
+ const GroupCard = ({ group, className }: GroupCardProps) => {
+  const navigate = useNavigate();
   return (
     <div
       className={cn(
@@ -55,6 +56,7 @@ export default function GroupCard({ group, className }: GroupCardProps) {
           variant="outline"
           size="sm"
           className="border-memories-purple text-memories-purple hover:bg-memories-light-purple"
+          onClick={() => navigate(`/groups/${group.id}`)}
         >
           Entrar
         </Button>
@@ -62,3 +64,4 @@ export default function GroupCard({ group, className }: GroupCardProps) {
     </div>
   );
 }
+export default GroupCard;
