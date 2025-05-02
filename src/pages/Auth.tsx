@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { LoginForm } from '../components/auth/LoginForm';
+import LoginForm  from '../components/auth/LoginForm';
 import { SignupForm } from '../components/auth/SignupForm';
 import { useNavigate, useSearchParams, Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
