@@ -474,7 +474,7 @@ export default function GroupDetailsPage() {
       <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-8 border border-indigo-100">
         {/* Capa */}
         <div className="relative">
-          {group.image_url ? (
+          {group?.image_url ? (
             <img
               src={group.image_url}
               alt={group.name}
@@ -500,7 +500,7 @@ export default function GroupDetailsPage() {
             }}
           />
 
-          <Button
+          {group && <Button
             variant="secondary"
             className={cn(
               "absolute bottom-4 right-4 bg-white/90 hover:bg-white text-indigo-700 hover:text-indigo-800 border border-indigo-200 shadow-md transition-all",
@@ -520,7 +520,7 @@ export default function GroupDetailsPage() {
                 {group.image_url ? "Alterar capa" : "Adicionar capa"}
               </>
             )}
-          </Button>
+          </Button>}
         </div>
 
         {/* Conteúdo */}
@@ -558,8 +558,8 @@ export default function GroupDetailsPage() {
                 </div>
               ) : (
                 <>
-                  <h1 className="text-3xl font-bold mb-4 text-indigo-800">{group.name}</h1>
-                  {group.description && (
+                  <h1 className="text-3xl font-bold mb-4 text-indigo-800">{group?.name}</h1>
+                  {group?.description && (
                     <p className="text-gray-600 mb-4 leading-relaxed">{group.description}</p>
                   )}
                 </>
@@ -575,9 +575,9 @@ export default function GroupDetailsPage() {
                     onClick={() => {
                       setEditing(false);
                       setForm({
-                        name: group.name,
-                        description: group.description || "",
-                        image_url: group.image_url,
+                        name: group?.name || "",
+                        description: group?.description || "",
+                        image_url: group?.image_url,
                       });
                     }}
                     disabled={saving}
@@ -612,7 +612,7 @@ export default function GroupDetailsPage() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between gap-4 text-sm text-indigo-600 bg-indigo-50 p-3 rounded-lg">
+          {group && <div className="flex items-center justify-between gap-4 text-sm text-indigo-600 bg-indigo-50 p-3 rounded-lg">
             <div className="flex items-center gap-4">
               <div className="flex items-center">
                 {group.is_private ? (
@@ -645,7 +645,8 @@ export default function GroupDetailsPage() {
                   )}
                 </Button>
               )}
-          </div>
+            </div>
+          </div>}
         </div>
       </div>
 
@@ -798,40 +799,40 @@ export default function GroupDetailsPage() {
               </div>
             </div>
           ))}
-      </div>
-    )}
-    {isMember && (
-      <Dialog open={!!previewMemory} onOpenChange={() => setPreviewMemory(null)}>
-        <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-xl bg-white">
-          <div className="grid grid-cols-1 md:grid-cols-2">
-            <div className="bg-indigo-50 flex items-center justify-center p-4">
-              <img
-                src={previewMemory?.image_url}
-                alt="Memória"
-                className="w-full h-auto rounded-lg shadow-md max-h-[600px] object-contain"
-              />
-            </div>
-            <div className="flex flex-col justify-between p-6">
-              <div>
-                <h2 className="text-2xl font-semibold mb-3 text-indigo-800">{previewMemory?.title || "Sem título"}</h2>
-                <p className="text-gray-600 mb-6 leading-relaxed">
-                  {previewMemory?.description || "Sem descrição"}
-                </p>
+        </div>
+      )}
+      {isMember && (
+        <Dialog open={!!previewMemory} onOpenChange={() => setPreviewMemory(null)}>
+          <DialogContent className="max-w-4xl p-0 overflow-hidden rounded-xl bg-white">
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              <div className="bg-indigo-50 flex items-center justify-center p-4">
+                <img
+                  src={previewMemory?.image_url}
+                  alt="Memória"
+                  className="w-full h-auto rounded-lg shadow-md max-h-[600px] object-contain"
+                />
               </div>
-              <div className="pt-4 border-t border-indigo-100">
-                <div className="flex items-center text-sm text-indigo-500">
-                  <Calendar className="h-4 w-4 mr-2" />
-                  <span>
-                    Publicado em {previewMemory?.created_at ? new Date(previewMemory.created_at).toLocaleDateString() : ""}
-                  </span>
+              <div className="flex flex-col justify-between p-6">
+                <div>
+                  <h2 className="text-2xl font-semibold mb-3 text-indigo-800">{previewMemory?.title || "Sem título"}</h2>
+                  <p className="text-gray-600 mb-6 leading-relaxed">
+                    {previewMemory?.description || "Sem descrição"}
+                  </p>
+                </div>
+                <div className="pt-4 border-t border-indigo-100">
+                  <div className="flex items-center text-sm text-indigo-500">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <span>
+                      Publicado em {previewMemory?.created_at ? new Date(previewMemory.created_at).toLocaleDateString() : ""}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-    )}
+          </DialogContent>
+        </Dialog>
+      )}
 
-</div>
-</div>
-  )}
+    </div>
+  );
+}
