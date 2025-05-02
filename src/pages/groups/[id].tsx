@@ -98,14 +98,14 @@ export default function GroupDetailsPage() {
 
   const checkMembership = async () => {
     if (!user?.id || !id) return false;
-    
+
     const { data: membership } = await supabase
       .from("group_members")
       .select("*")
       .eq("group_id", id)
       .eq("user_id", user.id)
       .single();
-    
+
     setIsMember(!!membership);
     return !!membership;
   };
@@ -306,11 +306,11 @@ export default function GroupDetailsPage() {
 
   const handleMemoryImagesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    
+
     // Create preview URLs for the images
     const newPreviewUrls = files.map(file => URL.createObjectURL(file));
     setPreviewImages(prev => [...prev, ...newPreviewUrls]);
-    
+
     // Update memory form
     setMemoryForm(prev => ({
       ...prev,
@@ -321,7 +321,7 @@ export default function GroupDetailsPage() {
   const removePreviewImage = (index: number) => {
     // Revoke the URL to prevent memory leaks
     URL.revokeObjectURL(previewImages[index]);
-    
+
     // Remove from previews and form
     setPreviewImages(prev => prev.filter((_, i) => i !== index));
     setMemoryForm(prev => ({
@@ -333,7 +333,7 @@ export default function GroupDetailsPage() {
   const handleMemorySave = async () => {
     try {
       setAddingMemory(true);
-      
+
       if (memoryForm.images.length === 0) {
         toast({
           title: "Imagens obrigatórias",
@@ -363,7 +363,7 @@ export default function GroupDetailsPage() {
       });
 
       const imageUrls = await Promise.all(uploadPromises);
-      
+
       // Create a memory record for each image
       const memoriesData = imageUrls.map(imageUrl => ({
         title: memoryForm.title,
@@ -407,34 +407,15 @@ export default function GroupDetailsPage() {
       });
     } finally {
       setAddingMemory(false);
+      setSaving(false);
+      setMemoryForm({
+        title: "",
+        description: "",
+        images: []
+      });
+      setPreviewImages([]);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8 bg-gradient-to-b from-indigo-50 to-white min-h-screen">
-        <div className="animate-pulse">
-          <div className="h-8 w-1/3 bg-indigo-200 rounded mb-4"></div>
-          <div className="h-4 w-2/3 bg-indigo-100 rounded mb-2"></div>
-          <div className="h-4 w-1/2 bg-indigo-100 rounded"></div>
-        </div>
-      </div>
-    );
-  }
-
-  if (!group) {
-    return (
-      <div className="container mx-auto px-4 py-8 bg-gradient-to-b from-indigo-50 to-white min-h-screen">
-        <div className="bg-white p-8 rounded-lg shadow-md">
-          <h1 className="text-2xl font-bold mb-4 text-indigo-700">Grupo não encontrado</h1>
-          <p className="text-gray-600">
-            O grupo que você está procurando não existe ou você não tem permissão
-            para acessá-lo.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   const handleMemoryUpload = async () => {
     if (!memoryFile || !user) return;
@@ -723,7 +704,7 @@ export default function GroupDetailsPage() {
                     <p className="mt-2 text-sm text-indigo-600">Clique para selecionar imagens</p>
                     <p className="text-xs text-indigo-400">ou arraste e solte aqui</p>
                   </div>
-                  
+
                   {previewImages.length > 0 && (
                     <div className="grid grid-cols-3 gap-2 mt-4">
                       {previewImages.map((url, index) => (
@@ -761,13 +742,13 @@ export default function GroupDetailsPage() {
           </Dialog>
         </div>
       </div>
-   
+
     </div>
     ): (
       null
     )}
-    
-    
+
+
       {loadingMemories ? (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {[1, 2, 3, 4, 5, 6].map((i) => (
