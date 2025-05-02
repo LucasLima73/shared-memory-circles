@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Mail, Lock, User, AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 interface LoginFormProps {
   onSuccess?: () => void;
 }
 
 export default function LoginForm({ onSuccess }: LoginFormProps) {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -28,6 +30,7 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
       }
 
       if (data.user) {
+        navigate('/dashboard');
         onSuccess?.();
       }
     } catch (err) {
