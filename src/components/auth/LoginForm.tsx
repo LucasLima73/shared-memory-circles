@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Mail, Lock, User, AlertCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface LoginFormProps {
   onSuccess?: () => void;
@@ -8,6 +9,7 @@ interface LoginFormProps {
 
 export default function LoginForm({ onSuccess }: LoginFormProps) {
   const navigate = useNavigate();
+  const { signIn } = useAuth();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -21,43 +23,20 @@ export default function LoginForm({ onSuccess }: LoginFormProps) {
     setIsLoading(true);
 
     try {
-      // Simulando chamada ao supabase para manter a funcionalidade
-      const { data, error: signInError } = await mockSupabaseAuth(formData);
-
-      if (signInError) {
-        setError('Email ou senha inválidos');
-        return;
-      }
-
-      if (data.user) {
-        navigate('/dashboard');
-        onSuccess?.();
-      }
-    } catch (err) {
-      setError('Ocorreu um erro ao fazer login');
+      // Use the real Supabase authentication
+      await signIn(formData.email, formData.password);
+      
+      // If we get here, authentication was successful
+      navigate('/dashboard');
+      onSuccess?.();
+    } catch (err: any) {
+      setError(err.message || 'Email ou senha inválidos');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Função mock para simular o comportamento do Supabase
-  const mockSupabaseAuth = async (credentials) => {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        if (credentials.email && credentials.password) {
-          resolve({ 
-            data: { user: { id: '1', email: credentials.email } },
-            error: null
-          });
-        } else {
-          resolve({
-            data: { user: null },
-            error: { message: 'Email ou senha inválidos' }
-          });
-        }
-      }, 800);
-    });
-  };
+
 
   return (
     <div className="max-w-md mx-auto p-8 bg-white rounded-xl shadow-lg border border-gray-100">

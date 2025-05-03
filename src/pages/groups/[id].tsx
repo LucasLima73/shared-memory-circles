@@ -16,7 +16,8 @@ import {
   Calendar,
   Lock,
   Globe,
-  Clock
+  Clock,
+  User
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { 
@@ -39,6 +40,7 @@ interface Group {
   allow_all_photos: boolean;
   created_at: string;
   created_by: string;
+  owner_name?: string;
 }
 
 interface GroupForm {
@@ -75,10 +77,13 @@ export default function GroupDetailsPage() {
   const [editing, setEditing] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [addingMemory, setAddingMemory] = useState(false);
+  const [memoryDialogOpen, setMemoryDialogOpen] = useState(false);
   const [previewMemory, setPreviewMemory] = useState<Memory | null>(null);
   const [memoryFile, setMemoryFile] = useState<File | null>(null);
   const [isMember, setIsMember] = useState(false);
+  const [isOwner, setIsOwner] = useState(false);
   const [joiningGroup, setJoiningGroup] = useState(false);
+  const [leavingGroup, setLeavingGroup] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const memoryImagesRef = useRef<HTMLInputElement>(null);
 
@@ -107,6 +112,12 @@ export default function GroupDetailsPage() {
       .single();
 
     setIsMember(!!membership);
+    
+    // Check if user is the owner
+    if (group && group.created_by === user.id) {
+      setIsOwner(true);
+    }
+    
     return !!membership;
   };
 
@@ -142,6 +153,39 @@ export default function GroupDetailsPage() {
       });
     } finally {
       setJoiningGroup(false);
+    }
+  };
+  
+  const leaveGroup = async () => {
+    if (!user?.id || !id || !isMember || leavingGroup) return;
+    
+    try {
+      setLeavingGroup(true);
+      const { error } = await supabase
+        .from("group_members")
+        .delete()
+        .eq("group_id", id)
+        .eq("user_id", user.id);
+        
+      if (error) throw error;
+      
+      setIsMember(false);
+      toast({
+        title: "Grupo abandonado",
+        description: "Você saiu deste grupo com sucesso.",
+      });
+      
+      // Clear memories since user is no longer a member
+      setMemories([]);
+    } catch (error) {
+      console.error("Error leaving group:", error);
+      toast({
+        title: "Erro ao sair do grupo",
+        description: "Não foi possível sair do grupo.",
+        variant: "destructive",
+      });
+    } finally {
+      setLeavingGroup(false);
     }
   };
 
@@ -192,6 +236,15 @@ export default function GroupDetailsPage() {
           .single();
 
         if (error) throw error;
+        
+        // Just use the creator ID as a simple identifier
+        // This avoids querying tables that might not exist
+        data.owner_name = data.created_by ? `Usuário ${data.created_by.substring(0, 6)}` : "Usuário";
+        
+        // If the current user is the creator, mark it as "você"
+        if (user && data.created_by === user.id) {
+          data.owner_name = "Você";
+        }
 
         setGroup(data);
         setForm({
@@ -199,6 +252,11 @@ export default function GroupDetailsPage() {
           description: data.description || "",
           image_url: data.image_url,
         });
+        
+        // Check if current user is the owner
+        if (user && data.created_by === user.id) {
+          setIsOwner(true);
+        }
 
         await checkAndCreateMembership(data.id);
       } catch (error) {
@@ -304,8 +362,12 @@ export default function GroupDetailsPage() {
     }
   };
 
-  const handleMemoryImagesSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleMemoryImagesSelect = async (e: React.ChangeEvent<HTMLInputElement>, autoSave = false) => {
     const files = Array.from(e.target.files || []);
+    
+    if (files.length === 0) return;
+    
+    console.log("Files selected:", files);
 
     // Create preview URLs for the images
     const newPreviewUrls = files.map(file => URL.createObjectURL(file));
@@ -316,6 +378,19 @@ export default function GroupDetailsPage() {
       ...prev,
       images: [...prev.images, ...files]
     }));
+    
+    // Auto-save if requested (for the empty state quick upload)
+    if (autoSave && files.length > 0) {
+      // Use a minimal form with just the images
+      const quickForm = {
+        title: "Nova memória",
+        description: "",
+        images: files
+      };
+      
+      // Save immediately
+      await handleQuickMemorySave(quickForm);
+    }
   };
 
   const removePreviewImage = (index: number) => {
@@ -330,9 +405,93 @@ export default function GroupDetailsPage() {
     }));
   };
 
+  const handleQuickMemorySave = async (quickForm) => {
+    try {
+      setAddingMemory(true);
+      console.log("Quick saving memory with files:", quickForm.images.length);
+
+      // Upload each image
+      const uploadPromises = quickForm.images.map(async (file) => {
+        const fileExt = file.name.split(".").pop();
+        const filePath = `memories/${id}/${uuidv4()}.${fileExt}`;
+
+        console.log("Uploading file to path:", filePath);
+
+        const { error: uploadError } = await supabase.storage
+          .from("memory-images")
+          .upload(filePath, file);
+
+        if (uploadError) {
+          console.error("Upload error:", uploadError);
+          throw uploadError;
+        }
+
+        const {
+          data: { publicUrl },
+        } = supabase.storage.from("memory-images").getPublicUrl(filePath);
+
+        console.log("File uploaded, public URL:", publicUrl);
+        return publicUrl;
+      });
+
+      const imageUrls = await Promise.all(uploadPromises);
+      console.log("All images uploaded:", imageUrls);
+
+      // Create a memory record for each image
+      const memoriesData = imageUrls.map(imageUrl => ({
+        title: quickForm.title,
+        description: quickForm.description,
+        image_url: imageUrl,
+        group_id: id,
+        created_by: user.id
+      }));
+
+      console.log("Creating memory records:", memoriesData);
+      const { error } = await supabase.from("memories").insert(memoriesData);
+
+      if (error) {
+        console.error("Error inserting memories:", error);
+        throw error;
+      }
+
+      // Reload memories
+      const { data: newMemories } = await supabase
+        .from("memories")
+        .select("*")
+        .eq("group_id", id)
+        .order("created_at", { ascending: false });
+
+      setMemories(newMemories || []);
+      console.log("Memories updated:", newMemories);
+
+      // Reset form
+      setMemoryForm({
+        title: "",
+        description: "",
+        images: []
+      });
+      setPreviewImages([]);
+      
+      toast({
+        title: "Memórias adicionadas",
+        description: "As novas memórias foram adicionadas com sucesso.",
+      });
+    } catch (error) {
+      console.error("Error saving memories:", error);
+      toast({
+        title: "Erro ao salvar memórias",
+        description: "Não foi possível salvar as memórias.",
+        variant: "destructive",
+      });
+    } finally {
+      setAddingMemory(false);
+    }
+  };
+
   const handleMemorySave = async () => {
     try {
       setAddingMemory(true);
+      console.log("Saving memory with form data:", memoryForm);
 
       if (memoryForm.images.length === 0) {
         toast({
@@ -349,20 +508,27 @@ export default function GroupDetailsPage() {
         const fileExt = file.name.split(".").pop();
         const filePath = `memories/${id}/${uuidv4()}.${fileExt}`;
 
+        console.log("Uploading file to path:", filePath);
+
         const { error: uploadError } = await supabase.storage
           .from("memory-images")
           .upload(filePath, file);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error("Upload error:", uploadError);
+          throw uploadError;
+        }
 
         const {
           data: { publicUrl },
         } = supabase.storage.from("memory-images").getPublicUrl(filePath);
 
+        console.log("File uploaded, public URL:", publicUrl);
         return publicUrl;
       });
 
       const imageUrls = await Promise.all(uploadPromises);
+      console.log("All images uploaded:", imageUrls);
 
       // Create a memory record for each image
       const memoriesData = imageUrls.map(imageUrl => ({
@@ -373,9 +539,13 @@ export default function GroupDetailsPage() {
         created_by: user.id
       }));
 
+      console.log("Creating memory records:", memoriesData);
       const { error } = await supabase.from("memories").insert(memoriesData);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error inserting memories:", error);
+        throw error;
+      }
 
       // Reload memories
       const { data: newMemories } = await supabase
@@ -385,6 +555,7 @@ export default function GroupDetailsPage() {
         .order("created_at", { ascending: false });
 
       setMemories(newMemories || []);
+      console.log("Memories updated:", newMemories);
 
       // Reset form
       setMemoryForm({
@@ -393,6 +564,9 @@ export default function GroupDetailsPage() {
         images: []
       });
       setPreviewImages([]);
+      
+      // Close the dialog
+      setMemoryDialogOpen(false);
 
       toast({
         title: "Memórias adicionadas",
@@ -467,7 +641,60 @@ export default function GroupDetailsPage() {
       setAddingMemory(false);
     }
   };
-
+  const handleDeleteMemory = async (memoryId: string) => {
+    try {
+      const { data: memory, error: fetchError } = await supabase
+        .from("memories")
+        .select("*")
+        .eq("id", memoryId)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      
+      // Verificar se o usuário é o dono da memória
+      if (memory.created_by !== user.id) {
+        toast({
+          title: "Permissão negada",
+          description: "Você só pode excluir memórias que você criou.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      console.log("Deleting memory:", memoryId);
+      
+      const { error: deleteError } = await supabase
+        .from("memories")
+        .delete()
+        .eq("id", memoryId);
+      
+      if (deleteError) {
+        console.error("Error deleting memory record:", deleteError);
+        throw deleteError;
+      }
+      
+      // Atualizar a UI removendo a memória da lista
+      setMemories(prev => prev.filter(m => m.id !== memoryId));
+      
+      // Fechar o preview se estiver aberto
+      if (previewMemory && previewMemory.id === memoryId) {
+        setPreviewMemory(null);
+      }
+  
+      toast({
+        title: "Memória deletada",
+        description: "A memória foi removida com sucesso.",
+      });
+    } catch (error) {
+      console.error("Error in handleDeleteMemory:", error);
+      toast({
+        title: "Erro ao deletar",
+        description: "Não foi possível deletar a memória.",
+        variant: "destructive",
+      });
+    }
+  };
+  
 
   return (
     <div className="container mx-auto px-4 py-8 bg-gradient-to-b from-indigo-50 to-white min-h-screen">
@@ -500,7 +727,7 @@ export default function GroupDetailsPage() {
             }}
           />
 
-          {group && <Button
+          {group && isOwner && <Button
             variant="secondary"
             className={cn(
               "absolute bottom-4 right-4 bg-white/90 hover:bg-white text-indigo-700 hover:text-indigo-800 border border-indigo-200 shadow-md transition-all",
@@ -600,20 +827,22 @@ export default function GroupDetailsPage() {
                   </Button>
                 </>
               ) : (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setEditing(true)}
-                  className="text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300"
-                >
-                  <PencilIcon className="h-4 w-4" />
-                </Button>
+                isOwner && (
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setEditing(true)}
+                    className="text-indigo-700 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300"
+                  >
+                    <PencilIcon className="h-4 w-4" />
+                  </Button>
+                )
               )}
             </div>
           </div>
 
           {group && <div className="flex items-center justify-between gap-4 text-sm text-indigo-600 bg-indigo-50 p-3 rounded-lg">
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center">
                 {group.is_private ? (
                   <Lock className="h-4 w-4 mr-1 text-indigo-500" />
@@ -629,21 +858,46 @@ export default function GroupDetailsPage() {
                   Criado em {new Date(group.created_at).toLocaleDateString()}
                 </span>
               </div>
-              {!isMember && (
-                <Button
-                  onClick={joinGroup}
-                  disabled={joiningGroup}
-                  className="bg-indigo-600 hover:bg-indigo-700 text-white"
-                >
-                  {joiningGroup ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Entrando...
-                    </>
-                  ) : (
-                    "Entrar"
-                  )}
-                </Button>
+              <span className="text-indigo-300">•</span>
+              <div className="flex items-center">
+                <User className="h-4 w-4 mr-1 text-indigo-500" />
+                <span>
+                  Criado por {group.owner_name || "Usuário"}
+                </span>
+              </div>
+              {!isOwner && (
+                !isMember ? (
+                  <Button
+                    onClick={joinGroup}
+                    disabled={joiningGroup}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                  >
+                    {joiningGroup ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Entrando...
+                      </>
+                    ) : (
+                      "Entrar"
+                    )}
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={leaveGroup}
+                    disabled={leavingGroup}
+                    variant="outline"
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  >
+                    {leavingGroup ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Saindo...
+                      </>
+                    ) : (
+                      "Sair do grupo"
+                    )}
+                  </Button>
+                )
               )}
             </div>
           </div>}
@@ -658,9 +912,20 @@ export default function GroupDetailsPage() {
           Memórias
         </h2>
         <div>
-          <Dialog>
+          <Dialog open={memoryDialogOpen} onOpenChange={setMemoryDialogOpen}>
             <DialogTrigger asChild>
-              <Button className="bg-indigo-600 hover:bg-indigo-700 text-white transition-all">
+              <Button 
+                className="bg-indigo-600 hover:bg-indigo-700 text-white transition-all"
+                onClick={() => {
+                  // Reset form when opening dialog
+                  setMemoryForm({
+                    title: "",
+                    description: "",
+                    images: []
+                  });
+                  setPreviewImages([]);
+                }}
+              >
                 <Plus className="w-4 h-4 mr-2" /> Nova Memória
               </Button>
             </DialogTrigger>
@@ -700,6 +965,7 @@ export default function GroupDetailsPage() {
                       multiple
                       className="hidden"
                       onChange={handleMemoryImagesSelect}
+                      onClick={(e) => e.stopPropagation()}
                     />
                     <ImageIcon className="mx-auto h-8 w-8 text-indigo-400" />
                     <p className="mt-2 text-sm text-indigo-600">Clique para selecionar imagens</p>
@@ -762,43 +1028,70 @@ export default function GroupDetailsPage() {
         </div>
       ) : memories.length === 0 ? (
         <div className="bg-white p-8 rounded-lg shadow-md text-center">
-          <Camera className="h-12 w-12 mx-auto text-indigo-300 mb-4" />
-          <h3 className="text-xl font-semibold text-indigo-700 mb-2">Nenhuma memória ainda</h3>
-          <p className="text-gray-600 mb-4">Adicione a primeira memória para este grupo!</p>
-          <Button 
-            onClick={() => memoryImagesRef.current?.click()}
-            className="bg-indigo-600 hover:bg-indigo-700"
-          >
-            <Plus className="w-4 h-4 mr-2" /> Criar memória
-          </Button>
-        </div>
+        <Camera className="h-12 w-12 mx-auto text-indigo-300 mb-4" />
+        <h3 className="text-xl font-semibold text-indigo-700 mb-2">Nenhuma memória ainda</h3>
+        <p className="text-gray-600 mb-4">Adicione a primeira memória para este grupo!</p>
+    
+        {/* 👇 este input estava faltando aqui */}
+        <input
+          type="file"
+          ref={memoryImagesRef}
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={(e) => handleMemoryImagesSelect(e, true)}
+        />
+    
+        <Button 
+          onClick={() => memoryImagesRef.current?.click()}
+          className="bg-indigo-600 hover:bg-indigo-700"
+        >
+          <Plus className="w-4 h-4 mr-2" /> Criar memória
+        </Button>
+      </div>
       ) : (
         <div className="columns-1 sm:columns-2 md:columns-3 gap-6 space-y-6">
           {memories.map((memory) => (
-            <div
-              key={memory.id}
-              className="break-inside-avoid cursor-pointer bg-white p-3 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-indigo-100"
-              onClick={() => setPreviewMemory(memory)}
-            >
-              <img
-                src={memory.image_url}
-                alt="memória"
-                className="rounded-lg w-full mb-3 hover:opacity-90 transition"
-              />
-              <div className="px-1">
-                <h3 className="font-semibold text-indigo-800 mb-1 line-clamp-1">
-                  {memory.title || "Sem título"}
-                </h3>
-                {memory.description && (
-                  <p className="text-sm text-gray-600 line-clamp-2 mb-2">{memory.description}</p>
-                )}
-                <div className="flex items-center text-xs text-indigo-400 mt-2">
-                  <Clock className="h-3 w-3 mr-1" />
-                  {new Date(memory.created_at).toLocaleDateString()}
-                </div>
-              </div>
-            </div>
-          ))}
+  <div
+    key={memory.id}
+    className="break-inside-avoid cursor-pointer bg-white p-3 rounded-xl shadow-sm hover:shadow-md transition-all duration-300 border border-indigo-100"
+    onClick={() => setPreviewMemory(memory)}
+  >
+    <img
+      src={memory.image_url}
+      alt="memória"
+      className="rounded-lg w-full mb-3 hover:opacity-90 transition"
+    />
+    <div className="px-1">
+      <h3 className="font-semibold text-indigo-800 mb-1 line-clamp-1">
+        {memory.title || "Sem título"}
+      </h3>
+      {memory.description && (
+        <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+          {memory.description}
+        </p>
+      )}
+      <div className="flex items-center justify-between text-xs text-indigo-400 mt-2">
+        <div className="flex items-center">
+          <Clock className="h-3 w-3 mr-1" />
+          {new Date(memory.created_at).toLocaleDateString()}
+        </div>
+        {memory.created_by === user?.id && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation(); // evita abrir o preview
+              handleDeleteMemory(memory.id);
+            }}
+            className="text-red-500 hover:text-red-700 text-xs"
+          >
+            Deletar
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+))}
+
         </div>
       )}
       {isMember && (

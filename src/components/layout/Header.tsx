@@ -49,93 +49,117 @@ export default function Header() {
           </a>
         </div>
 
-        <div className="hidden md:flex md:flex-1 md:justify-center md:px-6">
-          <div className="relative w-full max-w-md">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Buscar memórias, grupos ou amigos..."
-              className="w-full bg-muted pl-8 md:w-80 lg:w-96"
-            />
+        {user && (
+          <div className="hidden md:flex md:flex-1 md:justify-center md:px-6">
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="search"
+                placeholder="Buscar memórias, grupos ou amigos..."
+                className="w-full bg-muted pl-8 md:w-80 lg:w-96"
+              />
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex items-center gap-3">
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button className="rounded-full bg-memories-purple hover:bg-memories-dark-purple" size="icon">
-                <Plus className="h-5 w-5" />
-                <span className="sr-only">Nova memória</span>
+          {user ? (
+            <>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button className="rounded-full bg-memories-purple hover:bg-memories-dark-purple" size="icon">
+                    <Plus className="h-5 w-5" />
+                    <span className="sr-only">Nova memória</span>
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Criar novo grupo</DialogTitle>
+                    <DialogDescription>
+                      Crie um novo grupo para compartilhar memórias com amigos e familiares.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="p-4">
+                    <CreateGroupForm />
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5" />
+                <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
+                <span className="sr-only">Notificações</span>
               </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Criar novo grupo</DialogTitle>
-                <DialogDescription>
-                  Crie um novo grupo para compartilhar memórias com amigos e familiares.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="p-4">
-                <CreateGroupForm />
-              </div>
-            </DialogContent>
-          </Dialog>
 
-          <Button variant="ghost" size="icon" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-red-500" />
-            <span className="sr-only">Notificações</span>
-          </Button>
-
-          <Button variant="ghost" size="icon">
-            <MessageSquare className="h-5 w-5" />
-            <span className="sr-only">Mensagens</span>
-          </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                <Avatar className="h-8 w-8 border">
-                  <AvatarImage src={user?.user_metadata?.avatar_url} />
-                  <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
-                </Avatar>
+              <Button variant="ghost" size="icon">
+                <MessageSquare className="h-5 w-5" />
+                <span className="sr-only">Mensagens</span>
               </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56" align="end" forceMount>
-              <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
-                <User className="mr-2 h-4 w-4" />
-                <span>Perfil</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  signOut();
-                  navigate('/');
-                }}
-                className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sair</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <Avatar className="h-8 w-8 border">
+                      <AvatarImage src={user?.user_metadata?.avatar_url} />
+                      <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuItem onClick={() => navigate('/profile')} className="cursor-pointer">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Perfil</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => {
+                      signOut();
+                      navigate('/');
+                    }}
+                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50"
+                  >
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Sair</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : (
+            <Button 
+              onClick={() => navigate('/auth')} 
+              className="bg-memories-purple hover:bg-memories-dark-purple"
+            >
+              Entrar
+            </Button>
+          )}
         </div>
       </div>
 
       {isMobile && showMobileMenu && (
         <div className="border-b bg-white p-4 animate-slide-in">
           <div className="flex flex-col space-y-4">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar..."
-                className="w-full pl-8"
-              />
-            </div>
-            <Button variant="ghost" className="justify-start">Meu Perfil</Button>
-            <Button variant="ghost" className="justify-start">Meus Grupos</Button>
-            <Button variant="ghost" className="justify-start">Configurações</Button>
+            {user ? (
+              <>
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Buscar..."
+                    className="w-full pl-8"
+                  />
+                </div>
+                <Button variant="ghost" className="justify-start">Meu Perfil</Button>
+                <Button variant="ghost" className="justify-start">Meus Grupos</Button>
+                <Button variant="ghost" className="justify-start">Configurações</Button>
+              </>
+            ) : (
+              <Button 
+                onClick={() => navigate('/login')} 
+                className="bg-memories-purple hover:bg-memories-dark-purple w-full"
+              >
+                Entrar
+              </Button>
+            )}
           </div>
         </div>
       )}
