@@ -95,9 +95,10 @@ export default function Sidebar({ className }: SidebarProps) {
           <Button
             variant="ghost"
             className="w-full justify-start gap-2 font-medium"
+            onClick={() => navigate('/groups/explore')}
           >
             <Users className="h-5 w-5" />
-            Grupos e Comunidades
+            Explorar Grupos
           </Button>
           <Button
             variant="ghost"
